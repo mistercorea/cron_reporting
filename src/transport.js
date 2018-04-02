@@ -4,6 +4,8 @@ var type,to;
 
 var Sender = {};
 
+var logger = require("./logger");
+
 Sender.email = function email(cron_ret) {
   this.transporter = nodemailer.createTransport({
     sendmail: true,
@@ -22,8 +24,8 @@ Sender.email = function email(cron_ret) {
         // text: "I hope this message gets delivered!"
       },
       (err, info) => {
-        console.log(info.envelope);
-        console.log(info.messageId);
+        logger.debug(info.envelope);
+        logger.debug(info.messageId);
       }
     );
   }
@@ -40,8 +42,7 @@ let Transport = function(cron_ret){
     // this.senderobj = null;
     if (this.type){
         this.senderobj = new Sender[this.type](cron_ret);
-        console.log(this);
-        
+        logger.debug("%O", this);
     }
 }
 

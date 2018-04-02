@@ -1,10 +1,11 @@
 
     <table>
-        <th v-for="(v,k) in coch[0]">
+        <th v-for="(v,k) in rows[0]">
             <td>{{k}}</td>
         </th>
-        <tr v-for="c in coch">
-            <td>{{ c["coch_id"] }}</td>
-            <td>{{ c["coc_number"] }}</td>
+        <tr v-for="r in rows">
+            <td v-for="v in r">{{v}}</td>
+            <!-- <td>{{ c["coch_id"] }}</td> -->
+            <!-- <td>{{ c["coc_number"] }}</td> -->
         </tr>
     </table>

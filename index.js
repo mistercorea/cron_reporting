@@ -35,9 +35,9 @@ const Template = require("./src/template");
 const Transport = require("./src/transport");
 var parser = require("cron-parser");
 const Configuration = require("./src/load_config");
-
 var config = new Configuration();
-// console.log(config);
+
+logger = require("./src/logger");
 
 var time_now = new Date();
 // just in case seconds passed after this program was called by a cron, truncating seconds and miliseconds + cronjob doesnt care for seconds
@@ -58,76 +58,55 @@ check_cron_datetime = (cron, time_now) => {
   return time_now.getTime() == scheduled_cron_time;
 };
 
-// using cron_reporting table
-database = new Database('cron_reporting');
+async function main(){
+  // using cron_reporting table
+  database = new Database('cron_reporting');
 
-database.connect(config.database);
-database
-  .getReports()
-  .then(async function(results) {
-    // Run all the reporting from datbase
-    for (i in results) {
-      cron = results[i]["cron_schedule"];
-      // if cron pattern matches the time execute
-      if (check_cron_datetime(cron, time_now)) {
-        try {
-          queries = JSON.parse(results[i]["queries"]);
-        } catch (err) {
-          console.log("Query json parse failed: " + err);
-        }
-        let promise_query = [];
-        // run all the queries from a report
-        for (const [title, query] of Object.entries(queries)) {
-          // console.log(query);
-          promise_query.push(database.runCronQuery(query, title));
-        }
-        // match queries and title
-        await Promise.all(promise_query)
-        .then(async datas => {
-          let res = {};
-          datas.forEach(data => {
-            res[data.title] = data.res;
-          });
-          return await Promise.resolve(res);
-        })
-        .then(async res => {
-          // generate html output
-          template = new Template(res, "./template/" + results[i]["template_html"]);
-          // await template.getOutput()
-          // .then((html) =>{
-          //   // send reports
-
-          html = await template.getOutput()  
-          transport = new Transport(results[i]);
-          // console.log(transport.type);
-          if (transport.type) {
-            console.log(transport.to);
-            // console.log(transport);
-            // console.log(html);
-            transport.send(html);
-            // console.log(transport.senderobj);
-          }
-          
-          // console.log(html);
-          // last time ran time stamp
-          ret = await database.setReportedTime(results[i]["id"]);
-          // console.log(ret);
-          // console.log(results[i]);
-          // })
-          // .catch((err)=>{
-            // console.log(err);
-          // })
-        });
+  logger.debug("database config", config.database);
+  database.connect(config.database);
+  results = await database.getReports();
+  logger.info('Reports going to be ran',results);
+  
+  // Run all the reporting from datbase
+  for (i in results) {
+    cron = results[i]["cron_schedule"];
+    // if cron pattern matches the time execute
+    if (check_cron_datetime(cron, time_now)) {
+      try {
+        queries = JSON.parse(results[i]["queries"]);
+      } catch (err) {
+        logger.log(0,"Query json parse failed: " + err);
       }
+      let promise_query = [];
+      // run all the queries from a report
+      for (const [title, query] of Object.entries(queries)) {
+        logger.info("query will be ran - " + query);
+        promise_query.push(database.runCronQuery(query, title));
+      }
+      // match queries and title
+      datas = await Promise.all(promise_query)
+      // .then(async datas => {
+      let res = {};
+      datas.forEach(data => {
+        res[data.title] = data.res;
+      });
+      // generate html output
+      template = new Template(res, "./template/" + results[i]["template_html"]);
+      html = await template.getOutput()  
+      transport = new Transport(results[i]);
+      logger.debug("Delivery type - " + transport.type);
+      if (transport.type) {
+        logger.debug("Delivered to - " + transport.to);
+        logger.debug("Report content - " +html);
+        // transport.send(html);
+      }
+
+      // last time ran time stamp
+      ret = await database.setReportedTime(results[i]["id"]);
     }
-    database.connection.end();
-  })
-  
-  
-  .catch(function(err) {
-    // console.log(err);
-  });
-  
+  }
+  database.connection.end();
+    
+}
 
-
-
+main();

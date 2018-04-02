@@ -1,6 +1,8 @@
 var mysql = require("mysql");
 var _ = require("lodash");
 
+logger = require("./logger");
+logger.lable = "database";
 
 
 Database.prototype.getReports = function(){
